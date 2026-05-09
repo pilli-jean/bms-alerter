@@ -30,6 +30,14 @@ _MOVIE_ROW_SEL = "div.sc-1412vr2-0"
 _TIME_RE = re.compile(r"\b\d{1,2}:\d{2}\s*(?:AM|PM)\b", re.I)
 _EVENT_CODE_RE = re.compile(r"(ET\d+)(?:[/?#]|$)")
 _DEFAULT_IMPERSONATE = "chrome120"
+_NOISE_ONLY_RE = re.compile(r"^[\s,|:/\\\-()]+$")
+
+
+def _normalize_other_text(text: str) -> str:
+    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"^[,|:/\\\-\s]+", "", text)
+    text = re.sub(r"[,|:/\\\-\s]+$", "", text)
+    return text
 
 
 @dataclass
@@ -38,6 +46,7 @@ class Showlisting:
     event_code: str | None
     detail_url: str | None
     show_times: list[str] = field(default_factory=list)
+    other_text: list[str] = field(default_factory=list)
 
 
 def region_cookie_from_city_slug(city_slug: str, region_name: str | None = None) -> str:
@@ -126,12 +135,33 @@ def _extract_listings_from_soup(soup: BeautifulSoup) -> list[Showlisting]:
         title = link.get_text(strip=True)
         blob = row.get_text(" ", strip=True)
         times = _TIME_RE.findall(blob)
+        # Keep non-time row strings (language/format/labels), excluding title.
+        other_text: list[str] = []
+        seen: set[str] = set()
+        for s in row.stripped_strings:
+            text = s.strip()
+            if not text:
+                continue
+            text = _normalize_other_text(text)
+            if not text:
+                continue
+            if text == title:
+                continue
+            if _TIME_RE.fullmatch(text):
+                continue
+            if _NOISE_ONLY_RE.fullmatch(text):
+                continue
+            if text in seen:
+                continue
+            seen.add(text)
+            other_text.append(text)
         out.append(
             Showlisting(
                 title=title,
                 event_code=event_code,
                 detail_url=abs_url,
                 show_times=times,
+                other_text=other_text,
             )
         )
     return out
@@ -192,6 +222,7 @@ def listings_to_dicts(rows: list[Showlisting]) -> list[dict[str, Any]]:
             "event_code": x.event_code,
             "detail_url": x.detail_url,
             "show_times": x.show_times,
+            "other_text": x.other_text,
         }
         for x in rows
     ]
