@@ -12,9 +12,9 @@ on:
         required: true
         default: 'michael'
       date:
-        description: 'Date (e.g., 2026-05-17)'
+        description: 'Date (e.g., 2026-05-13)'
         required: false
-        default: '2026-05-17'
+        default: '2026-05-13'
       other_text:
         description: 'Comma separated other text'
         required: false
@@ -41,11 +41,11 @@ jobs:
       - name: Run check-shows script
         id: check_shows
         run: |
-          # Read from inputs (if manual run) or default to placeholders
-          RAW_URLS="${{ github.event.inputs.urls || 'PLACEHOLDER_URLS' }}"
-          RAW_MOVIES="${{ github.event.inputs.movies || 'PLACEHOLDER_MOVIES' }}"
-          RAW_DATE="${{ github.event.inputs.date || 'PLACEHOLDER_DATE' }}"
-          RAW_OTHER="${{ github.event.inputs.other_text || 'PLACEHOLDER_OTHER_TEXT' }}"
+          # Read from inputs (if manual run) or default to real values for scheduled runs
+          RAW_URLS="${{ github.event.inputs.urls || 'https://in.bookmyshow.com/cinemas/hyderabad/allu-cinemas-kokapet/buytickets/ALUC/20260513' }}"
+          RAW_MOVIES="${{ github.event.inputs.movies || 'michael' }}"
+          RAW_DATE="${{ github.event.inputs.date || '2026-05-13' }}"
+          RAW_OTHER="${{ github.event.inputs.other_text || 'dolby' }}"
 
           # Helper function to convert CSV "foo, bar" into space-separated '"foo" "bar"'
           format_csv() {
@@ -81,6 +81,9 @@ jobs:
             CMD="$CMD \\
             --other-text $OTHER"
           fi
+
+          echo "DEBUG: Running list-shows.py for the first URL to see response..."
+          python list-shows.py "$RAW_URLS" || true
 
           echo "Running command: $CMD"
           OUTPUT=$(eval "$CMD")

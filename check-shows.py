@@ -189,6 +189,7 @@ def main() -> str:
         other_text_filters=other_filters,
         next_days=max(0, int(args.next_days)),
     )
+    print(ok)
     return "true" if ok else "false"
 
 
