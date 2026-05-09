@@ -1,0 +1,85 @@
+name: Check Shows
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Comma separated list of URLs'
+        required: true
+        default: 'https://in.bookmyshow.com/cinemas/hyderabad/allu-cinemas-kokapet/buytickets/ALUC/20260513'
+      movies:
+        description: 'Comma separated list of movies'
+        required: true
+        default: 'michael'
+      date:
+        description: 'Date (e.g., 2026-05-17)'
+        required: false
+        default: ''
+      other_text:
+        description: 'Comma separated other text'
+        required: false
+        default: 'dolby'
+  schedule:
+    - cron: '0 */2 * * *' # Every two hours
+
+jobs:
+  check-shows:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install requirements
+        run: pip install -r requirements.txt
+
+      - name: Run check-shows script
+        run: |
+          # Read from inputs (if manual run) or default to placeholders
+          RAW_URLS="${{ github.event.inputs.urls || 'PLACEHOLDER_URLS' }}"
+          RAW_MOVIES="${{ github.event.inputs.movies || 'PLACEHOLDER_MOVIES' }}"
+          RAW_DATE="${{ github.event.inputs.date || 'PLACEHOLDER_DATE' }}"
+          RAW_OTHER="${{ github.event.inputs.other_text || 'PLACEHOLDER_OTHER_TEXT' }}"
+
+          # Helper function to convert CSV "foo, bar" into space-separated '"foo" "bar"'
+          format_csv() {
+            IFS=',' read -ra arr <<< "$1"
+            local res=""
+            for item in "${arr[@]}"; do
+              # trim spaces
+              item=$(echo "$item" | xargs)
+              if [ -n "$item" ]; then
+                res="$res \"$item\""
+              fi
+            done
+            echo "$res"
+          }
+
+          # Format the CSV strings into space-separated quoted strings
+          URLS=$(format_csv "$RAW_URLS")
+          MOVIES=$(format_csv "$RAW_MOVIES")
+          OTHER=$(format_csv "$RAW_OTHER")
+
+          # Build the command dynamically
+          CMD="python check-shows.py \\
+            --urls $URLS \\
+            --movies $MOVIES"
+
+          # Add optional arguments if they are provided
+          if [ -n "$RAW_DATE" ]; then
+            CMD="$CMD \\
+            --date \"$RAW_DATE\""
+          fi
+
+          if [ -n "$RAW_OTHER" ]; then
+            CMD="$CMD \\
+            --other-text $OTHER"
+          fi
+
+          echo "Running command: $CMD"
+          eval "$CMD"
