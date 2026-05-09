@@ -54,7 +54,11 @@ def _parse_day(raw: str) -> date:
 
 def _dates_to_check(single_date: str | None, next_days: int) -> list[date]:
     if single_date:
-        return [_parse_day(single_date)]
+        try:
+            return [_parse_day(single_date)]
+        except ValueError:
+            pass  # Fallback to next_days if date format does not match
+            
     start = date.today()
     # Include today + next N days, e.g. next_days=7 -> 8 dates.
     return [start + timedelta(days=i) for i in range(next_days + 1)]

@@ -14,7 +14,7 @@ on:
       date:
         description: 'Date (e.g., 2026-05-17)'
         required: false
-        default: ''
+        default: '2026-05-17'
       other_text:
         description: 'Comma separated other text'
         required: false
@@ -39,6 +39,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run check-shows script
+        id: check_shows
         run: |
           # Read from inputs (if manual run) or default to placeholders
           RAW_URLS="${{ github.event.inputs.urls || 'PLACEHOLDER_URLS' }}"
@@ -82,4 +83,15 @@ jobs:
           fi
 
           echo "Running command: $CMD"
-          eval "$CMD"
+          OUTPUT=$(eval "$CMD")
+          echo "Script output: $OUTPUT"
+          echo "result=$OUTPUT" >> "$GITHUB_OUTPUT"
+          echo "movies=$RAW_MOVIES" >> "$GITHUB_OUTPUT"
+
+      - name: Send email
+        if: steps.check_shows.outputs.result == 'true'
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python send-email.py --subject "${{ steps.check_shows.outputs.movies }}" --body "tickets found"
